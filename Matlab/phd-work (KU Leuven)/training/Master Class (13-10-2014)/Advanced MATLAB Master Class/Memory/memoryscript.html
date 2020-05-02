@@ -1,0 +1,196 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html xmlns:mwsh="http://www.mathworks.com/namespace/mcode/v1/syntaxhighlight.dtd">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   
+      <!--
+This HTML is auto-generated from an M-file.
+To make changes, update the M-file and republish this document.
+      -->
+      <title>Script for memory management section</title>
+      <meta name="generator" content="MATLAB 7.5">
+      <meta name="date" content="2007-07-26">
+      <meta name="m-file" content="memoryscript"><style>
+
+body {
+  background-color: white;
+  margin:10px;
+}
+
+h1 {
+  color: #990000; 
+  font-size: x-large;
+}
+
+h2 {
+  color: #990000;
+  font-size: medium;
+}
+
+/* Make the text shrink to fit narrow windows, but not stretch too far in 
+wide windows. */ 
+p,h1,h2,div.content div {
+  max-width: 600px;
+  /* Hack for IE6 */
+  width: auto !important; width: 600px;
+}
+
+pre.codeinput {
+  background: #EEEEEE;
+  padding: 10px;
+}
+@media print {
+  pre.codeinput {word-wrap:break-word; width:100%;}
+} 
+
+span.keyword {color: #0000FF}
+span.comment {color: #228B22}
+span.string {color: #A020F0}
+span.untermstring {color: #B20000}
+span.syscmd {color: #B28C00}
+
+pre.codeoutput {
+  color: #666666;
+  padding: 10px;
+}
+
+pre.error {
+  color: red;
+}
+
+p.footer {
+  text-align: right;
+  font-size: xx-small;
+  font-weight: lighter;
+  font-style: italic;
+  color: gray;
+}
+
+  </style></head>
+   <body>
+      <div class="content">
+         <h1>Script for memory management section</h1>
+         <introduction></introduction>
+         <h2>Contents</h2>
+         <div>
+            <ul>
+               <li><a href="#1">Passing arrays</a></li>
+               <li><a href="#2">Inplace Optimization</a></li>
+               <li><a href="#3">Memory Used for Different Array Types</a></li>
+               <li><a href="#5">Structure memory management.</a></li>
+            </ul>
+         </div>
+         <h2>Passing arrays<a name="1"></a></h2>
+         <div>
+            <ul>
+               <li>Open foo.m</li>
+               <li>Ask which arrays, x, a, b are copies of ones from the caller.</li>
+               <li>MATLAB does a "lazy" copy or copy on write.</li>
+            </ul>
+         </div>
+         <h2>Inplace Optimization<a name="2"></a></h2>
+         <div>
+            <ul>
+               <li>Show the slide.</li>
+               <li>Ask what's the difference of the 2 lines of code?</li>
+            </ul>
+         </div>
+         <div>
+            <ul>
+               <li>Show the next slide</li>
+               <li>Open up the Windows Task Manager and show 2 areas of interest, CPU and Page File Usage (a proxy for memory)</li>
+               <li>Open the files testInplace myfunc myfuncInplace</li>
+               <li>Ask difference between myfunc and myfuncInplace</li>
+               <li>Run cases from testInplace via cell mode with Task Manager showing - before each case, ask what users expect to see in the
+                  Task Manager
+               </li>
+            </ul>
+         </div>
+         <h2>Memory Used for Different Array Types<a name="3"></a></h2>
+         <div>
+            <ul>
+               <li>First "hide" workspace browser</li>
+               <li>Run overhead and ask which one, double, cell of double, or struct with double, takes more space?  And why?</li>
+               <li>Either whos or show workspace browser now</li>
+            </ul>
+         </div>
+         <p>Name       Size            Bytes  Class     Attributes</p><pre>d          1x2                16  double
+dcell      1x1                76  cell
+dstruct    1x1               140  struct</pre><div>
+            <ul>
+               <li>For a MATLAB array, 60 bytes.  (compare cell to regular)</li>
+               <li>For each field in a structure, 64 bytes (namelengthmax)</li>
+               <li>whos doesn&#8217;t show memory for overall container</li>
+            </ul>
+         </div>
+         <h2>Structure memory management.<a name="5"></a></h2>
+         <div>
+            <ul>
+               <li>Keep Windows Task Manager Available to show memory usage as you run m-files</li>
+               <li>Walk through structmem1 (copy one struct to another and change 1 field)</li>
+               <li>Walk through structmem2.  Compare array of structs vs. struct arrays. Each field of struct has 124 Byte overhead.  (Each element
+                  of cell has 60 Byte overhead).  Double array has no  overhead.
+               </li>
+            </ul>
+         </div>
+         <p class="footer">Copyright 2007 The MathWorks, Inc.<br>
+            Published with MATLAB&reg; 7.5<br></p>
+      </div>
+      <!--
+##### SOURCE BEGIN #####
+%% Script for memory management section
+
+% Copyright 2007 The MathWorks, Inc.
+
+%% Passing arrays
+% 
+% * Open foo.m
+% * Ask which arrays, x, a, b are copies of ones from the caller.
+% * MATLAB does a "lazy" copy or copy on write.
+%
+%% Inplace Optimization
+% 
+% * Show the slide.
+% * Ask what's the difference of the 2 lines of code?
+%
+% * Show the next slide
+% * Open up the Windows Task Manager and show 2 areas of interest, CPU and Page File
+% Usage (a proxy for memory)
+% * Open the files testInplace myfunc myfuncInplace
+% * Ask difference between myfunc and myfuncInplace
+% * Run cases from testInplace via cell mode with Task Manager showing - before each case, ask
+% what users expect to see in the Task Manager
+
+%% Memory Used for Different Array Types
+%
+% * First "hide" workspace browser
+% * Run overhead and ask which one, double, cell of double, or struct with double, 
+% takes more space?  And why?
+% * Either whos or show workspace browser now
+%%
+% Name       Size            Bytes  Class     Attributes
+%
+%  d          1x2                16  double 
+%  dcell      1x1                76  cell                
+%  dstruct    1x1               140  struct 
+%
+% * For a MATLAB array, 60 bytes.  (compare cell to regular)
+% * For each field in a structure, 64 bytes (namelengthmax)
+% * whos doesn’t show memory for overall container
+
+%% Structure memory management.
+%
+% * Keep Windows Task Manager Available to show memory usage as you run m-files
+% * Walk through structmem1 (copy one struct to another and change 1 field)
+% * Walk through structmem2.  Compare array of structs vs. struct arrays.
+% Each field of struct has 124 Byte overhead.
+%  (Each element of cell has 60 Byte overhead).  Double array has no
+%  overhead.
+%
+
+##### SOURCE END #####
+-->
+   </body>
+</html>

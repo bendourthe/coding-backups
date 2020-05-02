@@ -1,0 +1,582 @@
+clear all; close all;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Proximity_Model:
+% - Calculates the shortest distance between two STL
+% - Plots each STL with an arrow joining the two closest neighbours
+% - Plots each STL with a colormap indicating the relative distance between
+% each articular surface
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Dependencies:        
+%               STL_ReadFile.m 
+%                   TRI_RemoveInvalidTriangles.m
+%                   TRI_RemoveBadlyConnectedTriangles.m
+%               GUI_PlotShells
+% Input: 
+%           Bone1: STL file corresponding to the first bone
+%           Bone2: STL file corresponding to second bone
+% 
+% Output:
+%           dist_min: Shortest distance calculated between the two STL
+%                   files selected (mm)
+%           PA_MC1: Proximity area of the first metacarpal (mm2)
+%           PA_Trap: Proximity area of the trapezium (mm2)
+%           dist_av: Average distance calculated between the two STL
+%                   files selected (mm)
+%           Figure 1: Shows the two bones
+%           Figure 2: Shows the proximity pattern (full range) of the MC1
+%           Figure 3: Shows the proximity area of the MC1 (d < 1.5)
+%           Figure 4: Shows the proximity pattern (full range) of the Trap 
+%           Figure 5: Shows the proximity area of the Trap (d < 1.5)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Selection of the current directory (where the STL files are)
+dir = 'C:\Users\u0096636\Documents\Professional\PhD KU Leuven\Data\Study_Faes_4D_CT\STL\Patientnr2\';
+
+% FILES
+MC1_ref = 'SE05_Frame1_MC1_SE000005_Frame0001.stl'
+Trap_ref = 'SE05_Frame1_Trap_SE000005_Frame0001.stl';
+MC1_frag = 'SE05_Frame1_MC1_SE000005_Frame0024.stl'
+Trap_frag = 'SE05_Frame1_Trap_SE000005_Frame0024.stl';
+filenameColorMC1 = 'Color_MC1_f24.txt';
+    fileColorMC1 = [dir filenameColorMC1];
+filenameColorTrap = 'Color_Trap_f24.txt';
+    fileColorTrap = [dir filenameColorTrap];
+    
+% Setting the maximal distance that the code will consider between the 2
+% bones and the distance that we consider critical (underneath which we can
+% expect high amount of stress due to high compression)
+dist_max = 3;       % in mm
+dist_prox =   1.5;    % in mm
+
+% MC1:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Read STL files
+[F_MC1_ref, V_MC1_ref] =  STL_ReadFile([dir MC1_ref],true);
+[F_Trap_ref, V_Trap_ref] =  STL_ReadFile([dir Trap_ref],true);
+[F_MC1_frag, V_MC1_frag] =  STL_ReadFile([dir MC1_frag],true);
+[F_Trap_frag, V_Trap_frag] =  STL_ReadFile([dir Trap_frag],true);
+
+% Registers the MC1_ref on the MC1_frag
+    [R_MC1, T_MC1, ERROR_MC1] = RegisterBones(F_MC1_ref, V_MC1_ref, F_MC1_frag, V_MC1_frag, 1);
+    H_MC1 = [R_MC1, T_MC1; 0 0 0 1];
+
+% Registers the Trap_ref on the Trap_frag
+    [R_Trap, T_Trap, ERROR_Trap] = RegisterBones(F_Trap_ref, V_Trap_ref, F_Trap_frag, V_Trap_frag, 1);
+    H_Trap = [R_Trap, T_Trap; 0 0 0 1];
+    
+% Register the complex MC1-trapezium from the current frame to the
+% reference one
+V_MC1_ref = R_MC1*V_MC1_ref.' + repmat(T_MC1,1,size(V_MC1_ref,1));
+    V_MC1_ref = V_MC1_ref.';
+V_Trap_ref = R_Trap*V_Trap_ref.' + repmat(T_Trap,1,size(V_Trap_ref,1));
+    V_Trap_ref = V_Trap_ref.';
+    
+% Test: see if the bones matches after applying the registration.
+    h1 = figure;
+    [obj, li, ax] = GUI_PlotShells(h1, {F_MC1_ref;F_MC1_frag}, {V_MC1_ref;V_MC1_frag},...
+            {ones(size(V_MC1_ref,1),1),ones(size(V_MC1_frag,1),1)});
+    box off
+    h2 = figure;
+    [obj, li, ax] = GUI_PlotShells(h2, {F_Trap_ref;F_Trap_frag}, {V_Trap_ref;V_Trap_frag},...
+            {ones(size(V_Trap_ref,1),1),ones(size(V_Trap_frag,1),1)});
+    box off
+    
+% Calculation of the shortest distance between the two STL selected
+[idx1,D1] = knnsearch(V_MC1_ref,V_Trap_ref);
+[C1,idxD1] = min(D1);
+dist_min = C1
+
+% Plot the two STL selected with an arrow joining the two points
+%       calculated as the closest neighbors
+[idx2,D2] = knnsearch(V_Trap_ref,V_MC1_ref);
+[C2,idxD2] = min(D2);
+
+P1 = V_MC1_ref(idx1(idxD1),:);
+P2 = V_Trap_ref(idx2(idxD2),:);
+SD = ((P2(1)-P1(1))^2+(P2(2)-P1(2))^2+(P2(3)-P1(3))^2)^(1/2);
+
+stl = figure;
+    [obj, li, ax] = GUI_PlotShells(stl, {F_MC1_ref;F_Trap_ref}, {V_MC1_ref;V_Trap_ref},...
+            {ones(size(V_MC1_ref,1),1),ones(size(V_Trap_ref,1),1)});
+box off
+set(gcf,'numbertitle','off','name','TMC joint position');
+
+% Calculation of the matrix D which contains the Euclidean distances between
+%       each points of each STL file
+D = pdist2(V_MC1_ref,V_Trap_ref);
+
+% Define the condition to take only one part of the stl surface into
+% consideration for the following steps (zone of interest)
+Def1 = D < dist_max.';
+
+%     Now we calculate the matrix idxD which corresponds to a 2xn matrix.
+%     The first row gives all the indexes of the points located in the
+%     zone of interest of the V_Bone1 matrix. The second row gives all the
+%     indexes of the points located in the zone of interest of the V_Bone2
+%     matrix.
+[idxrD,idxcD] = find(D<dist_max);
+idxD = [idxrD,idxcD];
+idxD(:,any(idxD==0,1)) = []; % Removes all the zero in the idxD Matrix
+idxD1 = unique(idxD(:,1));
+idxD2 = unique(idxD(:,2));
+
+%     Then we isolate the coordinates of each point of each STL file
+%     located in the zone of interest in two different matrices.
+for i = 1:length(idxD1)
+    CA_V_Bone1(i,:) = V_MC1_ref(idxD1(i),:);
+end
+for i = 1:length(idxD2)
+    CA_V_Bone2(i,:) = V_Trap_ref(idxD2(i),:);
+end
+
+%     Then we assign each point from the first STL with the corresponding
+%     one from the second STL
+for i = 1:length(CA_V_Bone1)
+    DCA = pdist2(CA_V_Bone1(i,:),CA_V_Bone2);
+    [minDCA(i),idxCA(i)] = min(DCA);
+end
+
+% Now we can calculate the contact surface area by calculating each
+% triangle's area formed by the points located in the contact zone
+for i = 1:length(idxD1)
+    CA_F_Bone1(i,:) = F_MC1_ref(idxD1(i),:);
+end
+for i = 1:length(idxD2)
+    CA_F_Bone2(i,:) = F_Trap_ref(idxD2(i),:);
+end
+
+% Define the condition to consider the zone of proximity (red zone)
+Defprox1 = D < dist_prox.';
+
+%     Now we calculate the matrix idxD which corresponds to a 2xn matrix.
+%     The first row gives all the indexes of the points located in the
+%     zone of interest of the V_Bone1 matrix. The second row gives all the
+%     indexes of the points located in the zone of interest of the V_Bone2
+%     matrix.
+[idxrDprox1,idxcDprox1] = find(D<dist_prox);
+idxDprox1 = [idxrDprox1,idxcDprox1];
+idxDprox1(:,any(idxDprox1==0,1)) = []; % Removes all the zero in the idxD Matrix
+idxD1prox = unique(idxDprox1(:,1));
+idxD2prox = unique(idxDprox1(:,2));
+
+%     Then we isolate the coordinates of each point of each STL file
+%     located in the zone of interest in two different matrices.
+for i = 1:length(idxD1prox)
+    CA_V_Bone1prox(i,:) = V_MC1_ref(idxD1prox(i),:);
+end
+for i = 1:length(idxD2prox)
+    CA_V_Bone2prox(i,:) = V_Trap_ref(idxD2prox(i),:);
+end
+
+%     Then we assign each point from the first STL with the corresponding
+%     one from the second STL
+for i = 1:length(CA_V_Bone1prox)
+    DCAprox1 = pdist2(CA_V_Bone1prox(i,:),CA_V_Bone2prox);
+    [minDCAprox1(i),idxCAprox1(i)] = min(DCAprox1);
+end
+
+% Now we can calculate the proximity area by calculating each
+% triangle's area formed by the points located in the proximity zone
+for i = 1:length(idxD1prox)
+    CA_F_Bone1prox(i,:) = F_MC1_ref(idxD1prox(i),:);
+end
+for i = 1:length(idxD2prox)
+    CA_F_Bone2prox(i,:) = F_Trap_ref(idxD2prox(i),:);
+end
+
+%       Each triangle is composed of 3 points called a,b and c
+Xa1 = V_MC1_ref(CA_F_Bone1prox(:,1),1);
+Ya1 = V_MC1_ref(CA_F_Bone1prox(:,1),2);
+Za1 = V_MC1_ref(CA_F_Bone1prox(:,1),3);
+
+Xb1 = V_MC1_ref(CA_F_Bone1prox(:,2),1);
+Yb1 = V_MC1_ref(CA_F_Bone1prox(:,2),2);
+Zb1 = V_MC1_ref(CA_F_Bone1prox(:,2),3);
+
+Xc1 = V_MC1_ref(CA_F_Bone1prox(:,3),1);
+Yc1 = V_MC1_ref(CA_F_Bone1prox(:,3),2);
+Zc1 = V_MC1_ref(CA_F_Bone1prox(:,3),3);
+
+%       Now we need to calculate the coordinates of the 2 vectors ab and ac
+for i=1:length(Xa1)
+    Xab1(i) = Xb1(i)-Xa1(i);
+    Yab1(i) = Yb1(i)-Ya1(i);
+    Zab1(i) = Zb1(i)-Za1(i);
+    Xac1(i) = Xc1(i)-Xa1(i);
+    Yac1(i) = Yc1(i)-Ya1(i);
+    Zac1(i) = Zc1(i)-Za1(i);
+end
+
+%       Now we need to calculate the surface area of each triangle and sum
+%       all of them to obtain to total contact area
+for i = 1:length(Xab1)
+    S1(i) = (1/2)*((Yab1(i)*Zac1(i)-Zab1(i)*Yac1(i))^2+(Zab1(i)*Xac1(i)-Xab1(i)*Zac1(i))^2+(Xab1(i)*Yac1(i)-Yab1(i)*Xac1(i))^2)^(1/2);
+end
+
+PA_MC1 = sum(S1(:))
+
+%     Now we can plot those points located in the compression area directly
+%     on the STL files in order to visualize the contact area
+XB1 = CA_V_Bone1(:,1);
+YB1 = CA_V_Bone1(:,2);
+ZB1 = CA_V_Bone1(:,3);
+XB2 = CA_V_Bone2(:,1);
+YB2 = CA_V_Bone2(:,2);
+ZB2 = CA_V_Bone2(:,3);
+
+% Plots the MC1 with the color map representing the proximity
+% pattern
+area1 = figure; 
+    [obj, li, ax] = GUI_PlotShells(area1, {F_MC1_ref}, {V_MC1_ref},...
+            {ones(size(V_MC1_ref,1),1)},[0,0,1]);
+box off
+view(-135,60);
+for i=1:length(V_MC1_ref)
+    colrstl1(i,:)=[0,0,1];
+end
+
+hold on
+for i=1:length(idxD1)
+    Dist1(i)=((XB1(i)-XB2(idxCA(i)))^2+(YB1(i)-YB2(idxCA(i)))^2+(ZB1(i)-ZB2(idxCA(i)))^2)^(1/2);
+    if Dist1(i) <= 1
+       colrstl1(idxD1(i),:) = [1,0,0];
+    elseif Dist1(i) > 1   
+    colrstl1(idxD1(i),:)= ...
+        [-((0.5*(Dist1(i)+1)-1)^2)+1,...
+        -((1.5*(Dist1(i)-1)-dist_max/2)^2)/((dist_max/2)^2)+1,...
+        -((0.5*(Dist1(i)-1)-1)^2)+1];
+    end
+end
+hold on
+patch('Faces',F_MC1_ref,'Vertices',V_MC1_ref, ...
+    'FaceColor','interp', ...
+    'FaceVertexCData',colrstl1, ...
+    'EdgeColor', 'interp', ...
+    'EdgeAlpha', 0, ...
+    'CDataMapping', 'scaled',...
+    'AmbientStrength', 0.4, ...
+    'DiffuseStrength', 0.8, ...
+    'SpecularStrength', 0.2, ...
+    'SpecularColorReflectance', 0.5, ...
+    'FaceLighting', 'gouraud')
+hold on
+step_h = (dist_max-1)/8;
+scale_h = [dist_max,dist_max-step_h,dist_max-2*step_h,dist_max-3*step_h,...
+    dist_max-4*step_h,dist_max-5*step_h,dist_max-6*step_h,dist_max-7*step_h,dist_max-8*step_h];
+h=colorbar('YTickLabel',{scale_h});
+set(h,'ylim',[0.1 0.9]);
+title = get(h,'Title');
+titleString = 'Distance (mm)';
+set(title ,'String',titleString,'FontWeight','bold');
+set(gcf,'numbertitle','off','name','MC1 - Proximity pattern (Full range)');
+
+% Creates a text file with the color matrix
+fid1 = fopen(fileColorMC1,'w+');
+    W = reshape(colrstl1.',1,[]);    
+    fprintf(fid1,'%5.8f\t%5.8f\t%5.8f\r\n',W);
+    fclose(fid1);
+
+%   Plots the MC1 with only the proximity area (d < 1.5)
+
+XB1prox = CA_V_Bone1prox(:,1);
+YB1prox = CA_V_Bone1prox(:,2);
+ZB1prox = CA_V_Bone1prox(:,3);
+XB2prox = CA_V_Bone2prox(:,1);
+YB2prox = CA_V_Bone2prox(:,2);
+ZB2prox = CA_V_Bone2prox(:,3);
+
+areaprox = figure; 
+    [obj, li, ax] = GUI_PlotShells(areaprox, {F_MC1_ref}, {V_MC1_ref},...
+            {ones(size(V_MC1_ref,1),1)},[0,0,1]);
+box off
+view(-135,60);
+for i=1:length(V_MC1_ref)
+    colrstlprox1(i,:)=[0,0,1];
+end
+
+hold on
+for i=1:length(idxD1prox)
+    Distprox1(i)=((XB1prox(i)-XB2prox(idxCAprox1(i)))^2+(YB1prox(i)-YB2prox(idxCAprox1(i)))^2 ...
+    +(ZB1prox(i)-ZB2prox(idxCAprox1(i)))^2)^(1/2);
+       if Distprox1(i) <= 1
+       colrstlprox1(idxD1prox(i),:) = [1,0,0];
+    elseif Distprox1(i) > 1   
+    colrstlprox1(idxD1prox(i),:)= ...
+        [-((0.5*(Distprox1(i)+1)-1)^2)+1,...
+        -((1.5*(Distprox1(i)-1)-dist_max/2)^2)/((dist_max/2)^2)+1,...
+        -((0.5*(Distprox1(i)-1)-1)^2)+1];
+    end
+end
+
+hold on
+patch('Faces',F_MC1_ref,'Vertices',V_MC1_ref, ...
+    'FaceColor','interp', ...
+    'FaceVertexCData',colrstlprox1, ...
+    'EdgeColor', 'interp', ...
+    'EdgeAlpha', 0, ...
+    'CDataMapping', 'scaled',...
+    'AmbientStrength', 0.4, ...
+    'DiffuseStrength', 0.8, ...
+    'SpecularStrength', 0.2, ...
+    'SpecularColorReflectance', 0.5, ...
+    'FaceLighting', 'gouraud')
+hold on
+step_h = (dist_max-1)/8;
+scale_h = [dist_max,dist_max-step_h,dist_max-2*step_h,dist_max-3*step_h,...
+    dist_max-4*step_h,dist_max-5*step_h,dist_max-6*step_h,dist_max-7*step_h,dist_max-8*step_h];
+h=colorbar('YTickLabel',{scale_h});
+set(h,'ylim',[0.1 0.9]);
+title = get(h,'Title');
+titleString = 'Distance (mm)';
+set(title ,'String',titleString,'FontWeight','bold');
+set(gcf,'numbertitle','off','name','MC1 - Proximity pattern (Contact)');
+
+% Trapezium:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Calculation of the shortest distance between the two STL selected
+[idx3,D3] = knnsearch(V_Trap_ref,V_MC1_ref);
+[C3,idxD3] = min(D3);
+
+% Plot the two STL selected with an arrow joining the two points
+%       calculated as the closest neighbors
+[idx4,D4] = knnsearch(V_MC1_ref,V_Trap_ref);
+[C4,idxD4] = min(D4);
+
+% Calculation of the matrix D which contains the Euclidean distances between
+%       each points of each STL file
+D3 = pdist2(V_Trap_ref,V_MC1_ref);
+
+% Define the condition to take only one part of the stl surface into
+% consideration for the following steps (zone of interest)
+Def3 = D3 < dist_max.';
+
+%     Now we calculate the matrix idxD which corresponds to a 2xn matrix.
+%     The first row gives all the indexes of the points located in the
+%     zone of interest of the V_Bone1 matrix. The second row gives all the
+%     indexes of the points located in the zone of interest of the V_Bone2
+%     matrix.
+[idxrDt,idxcDt] = find(D3<dist_max);
+idxDt = [idxrDt,idxcDt];
+idxDt(:,any(idxDt==0,1)) = []; % Removes all the zero in the idxD Matrix
+idxD3 = unique(idxDt(:,1));
+idxD4 = unique(idxDt(:,2));
+
+%     Then we isolate the coordinates of each point of each STL file
+%     located in the zone of interest in two different matrices.
+for i = 1:length(idxD3)
+    CA_V_Bone3(i,:) = V_Trap_ref(idxD3(i),:);
+end
+for i = 1:length(idxD4)
+    CA_V_Bone4(i,:) = V_MC1_ref(idxD4(i),:);
+end
+
+%     Then we assign each point from the first STL with the corresponding
+%     one from the second STL
+for i = 1:length(CA_V_Bone3)
+    DCAt = pdist2(CA_V_Bone3(i,:),CA_V_Bone4);
+    [minDCAt(i),idxCAt(i)] = min(DCAt);
+end
+
+% Now we can calculate the contact surface area by calculating each
+% triangle's area formed by the points located in the contact zone
+for i = 1:length(idxD3)
+    CA_F_Bone3(i,:) = F_Trap_ref(idxD3(i),:);
+end
+for i = 1:length(idxD4)
+    CA_F_Bone4(i,:) = F_MC1_ref(idxD4(i),:);
+end
+
+% Define the condition to consider the zone of proximity (red zone)
+Def3prox = D3 < dist_prox.';
+
+%     Now we calculate the matrix idxD which corresponds to a 2xn matrix.
+%     The first row gives all the indexes of the points located in the
+%     zone of interest of the V_Bone1 matrix. The second row gives all the
+%     indexes of the points located in the zone of interest of the V_Bone2
+%     matrix.
+[idxrDtprox,idxcDtprox] = find(D3<dist_prox);
+idxDtprox = [idxrDtprox,idxcDtprox];
+idxDtprox(:,any(idxDtprox==0,1)) = []; % Removes all the zero in the idxD Matrix
+idxD3prox = unique(idxDtprox(:,1));
+idxD4prox = unique(idxDtprox(:,2));
+
+%     Then we isolate the coordinates of each point of each STL file
+%     located in the zone of interest in two different matrices.
+for i = 1:length(idxD3prox)
+    CA_V_Bone3prox(i,:) = V_Trap_ref(idxD3prox(i),:);
+end
+for i = 1:length(idxD4prox)
+    CA_V_Bone4prox(i,:) = V_MC1_ref(idxD4prox(i),:);
+end
+
+%     Then we assign each point from the first STL with the corresponding
+%     one from the second STL
+for i = 1:length(CA_V_Bone3prox)
+    DCAtprox = pdist2(CA_V_Bone3prox(i,:),CA_V_Bone4prox);
+    [minDCAtprox(i),idxCAprox2(i)] = min(DCAtprox);
+end
+
+% Now we can calculate the contact surface area by calculating each
+% triangle's area formed by the points located in the contact zone
+for i = 1:length(idxD3prox)
+    CA_F_Bone3prox(i,:) = F_Trap_ref(idxD3prox(i),:);
+end
+for i = 1:length(idxD4prox)
+    CA_F_Bone4prox(i,:) = F_MC1_ref(idxD4prox(i),:);
+end
+
+%       Each triangle is composed of 3 points called a,b and c
+Xa3 = V_Trap_ref(CA_F_Bone3prox(:,1),1);
+Ya3 = V_Trap_ref(CA_F_Bone3prox(:,1),2);
+Za3 = V_Trap_ref(CA_F_Bone3prox(:,1),3);
+
+Xb3 = V_Trap_ref(CA_F_Bone3prox(:,2),1);
+Yb3 = V_Trap_ref(CA_F_Bone3prox(:,2),2);
+Zb3 = V_Trap_ref(CA_F_Bone3prox(:,2),3);
+
+Xc3 = V_Trap_ref(CA_F_Bone3prox(:,3),1);
+Yc3 = V_Trap_ref(CA_F_Bone3prox(:,3),2);
+Zc3 = V_Trap_ref(CA_F_Bone3prox(:,3),3);
+
+%       Now we need to calculate the coordinates of the 2 vectors ab and ac
+for i=1:length(Xa3)
+    Xab3(i) = Xb3(i)-Xa3(i);
+    Yab3(i) = Yb3(i)-Ya3(i);
+    Zab3(i) = Zb3(i)-Za3(i);
+    Xac3(i) = Xc3(i)-Xa3(i);
+    Yac3(i) = Yc3(i)-Ya3(i);
+    Zac3(i) = Zc3(i)-Za3(i);
+end
+
+%       Now we need to calculate the surface area of each triangle and sum
+%       all of them to obtain to total contact area
+for i = 1:length(Xab3)
+    S3(i) = (1/2)*((Yab3(i)*Zac3(i)-Zab3(i)*Yac3(i))^2+(Zab3(i)*Xac3(i)-Xab3(i)*Zac3(i))^2+(Xab3(i)*Yac3(i)-Yab3(i)*Xac3(i))^2)^(1/2);
+end
+
+PA_Trap = sum(S3(:))
+
+%     Now we can plot those points located in the compression area directly
+%     on the STL files in order to visualize the contact area
+XB3 = CA_V_Bone3(:,1);
+YB3 = CA_V_Bone3(:,2);
+ZB3 = CA_V_Bone3(:,3);
+XB4 = CA_V_Bone4(:,1);
+YB4 = CA_V_Bone4(:,2);
+ZB4 = CA_V_Bone4(:,3);
+
+% Plots the trapezium with the color map representing the proximity
+% pattern
+area2 = figure; 
+    [obj, li, ax] = GUI_PlotShells(area2, {F_Trap_ref}, {V_Trap_ref},...
+            {ones(size(V_Trap_ref,1),1)},[0,0,1]);
+box off
+view(0,-45);
+for i=1:length(V_Trap_ref)
+    colrstl2(i,:)=[0,0,1];
+end
+
+hold on
+for i=1:length(idxD3)
+    Dist2(i)=((XB3(i)-XB4(idxCAt(i)))^2+(YB3(i)-YB4(idxCAt(i)))^2+(ZB3(i)-ZB4(idxCAt(i)))^2)^(1/2);
+    if Dist2(i) <= 1
+       colrstl2(idxD3(i),:) = [1,0,0];
+    elseif Dist2(i) > 1   
+    colrstl2(idxD3(i),:)= ...
+        [-((0.5*(Dist2(i)+1)-1)^2)+1,...
+        -((1.5*(Dist2(i)-1)-dist_max/2)^2)/((dist_max/2)^2)+1,...
+        -((0.5*(Dist2(i)-1)-1)^2)+1];
+    end
+end
+hold on
+patch('Faces',F_Trap_ref,'Vertices',V_Trap_ref, ...
+    'FaceColor','interp', ...
+    'FaceVertexCData',colrstl2, ...
+    'EdgeColor', 'interp', ...
+    'EdgeAlpha', 0, ...
+    'CDataMapping', 'scaled',...
+    'AmbientStrength', 0.4, ...
+    'DiffuseStrength', 0.8, ...
+    'SpecularStrength', 0.2, ...
+    'SpecularColorReflectance', 0.5, ...
+    'FaceLighting', 'gouraud')
+hold on
+step_h = (dist_max-1)/8;
+scale_h = [dist_max,dist_max-step_h,dist_max-2*step_h,dist_max-3*step_h,...
+    dist_max-4*step_h,dist_max-5*step_h,dist_max-6*step_h,dist_max-7*step_h,dist_max-8*step_h];
+h=colorbar('YTickLabel',{scale_h});
+set(h,'ylim',[0.1 0.9]);
+title = get(h,'Title');
+titleString = 'Distance (mm)';
+set(title ,'String',titleString,'FontWeight','bold');
+set(gcf,'numbertitle','off','name','Trapezium - Proximity pattern (Full range)');
+
+% Creates a text file with the color matrix
+fid2 = fopen(fileColorTrap,'w+');
+    W = reshape(colrstl2.',1,[]); 
+    fprintf(fid2,'%5.8f\t%5.8f\t%5.8f\r\n',W);
+    fclose(fid2);
+    
+%   Plots the trapezium with only the proximity area (d < 1.5)
+
+XB3prox = CA_V_Bone3prox(:,1);
+YB3prox = CA_V_Bone3prox(:,2);
+ZB3prox = CA_V_Bone3prox(:,3);
+XB4prox = CA_V_Bone4prox(:,1);
+YB4prox = CA_V_Bone4prox(:,2);
+ZB4prox = CA_V_Bone4prox(:,3);
+
+areaprox2 = figure; 
+    [obj, li, ax] = GUI_PlotShells(areaprox2, {F_Trap_ref}, {V_Trap_ref},...
+            {ones(size(V_Trap_ref,1),1)},[0,0,1]);
+box off
+view(0,-45);
+for i=1:length(V_Trap_ref)
+    colrstlprox2(i,:)=[0,0,1];
+end
+
+hold on
+for i=1:length(idxD3prox)
+    Distprox2(i)=((XB3prox(i)-XB4prox(idxCAprox2(i)))^2+(YB3prox(i)-YB4prox(idxCAprox2(i)))^2 ...
+    +(ZB3prox(i)-ZB4prox(idxCAprox2(i)))^2)^(1/2);
+    if Distprox2(i) <= 1
+       colrstlprox2(idxD3prox(i),:) = [1,0,0];
+    elseif Distprox2(i) > 1   
+    colrstlprox2(idxD3prox(i),:)= ...
+        [-((0.5*(Distprox2(i)+1)-1)^2)+1,...
+        -((1.5*(Distprox2(i)-1)-dist_max/2)^2)/((dist_max/2)^2)+1,...
+        -((0.5*(Distprox2(i)-1)-1)^2)+1];
+    end
+end
+
+hold on
+patch('Faces',F_Trap_ref,'Vertices',V_Trap_ref, ...
+    'FaceColor','interp', ...
+    'FaceVertexCData',colrstlprox2, ...
+    'EdgeColor', 'interp', ...
+    'EdgeAlpha', 0, ...
+    'CDataMapping', 'scaled',...
+    'AmbientStrength', 0.4, ...
+    'DiffuseStrength', 0.8, ...
+    'SpecularStrength', 0.2, ...
+    'SpecularColorReflectance', 0.5, ...
+    'FaceLighting', 'gouraud')
+hold on
+step_h = (dist_max-1)/8;
+scale_h = [dist_max,dist_max-step_h,dist_max-2*step_h,dist_max-3*step_h,...
+    dist_max-4*step_h,dist_max-5*step_h,dist_max-6*step_h,dist_max-7*step_h,dist_max-8*step_h];
+h=colorbar('YTickLabel',{scale_h});
+set(h,'ylim',[0.1 0.9]);
+title = get(h,'Title');
+titleString = 'Distance (mm)';
+set(title ,'String',titleString,'FontWeight','bold');
+set(gcf,'numbertitle','off','name','Trapezium - Proximity pattern (Contact)');
+
+% Average distance for the entire PA
+dist_av = (mean(Distprox1) + mean(Distprox2)) / 2
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% END %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

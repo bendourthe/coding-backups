@@ -1,0 +1,380 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html xmlns:mwsh="http://www.mathworks.com/namespace/mcode/v1/syntaxhighlight.dtd">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   
+      <!--
+This HTML is auto-generated from an M-file.
+To make changes, update the M-file and republish this document.
+      -->
+      <title>Function Quiz script</title>
+      <meta name="generator" content="MATLAB 7.5">
+      <meta name="date" content="2007-07-26">
+      <meta name="m-file" content="functionQuizScript"><style>
+
+body {
+  background-color: white;
+  margin:10px;
+}
+
+h1 {
+  color: #990000; 
+  font-size: x-large;
+}
+
+h2 {
+  color: #990000;
+  font-size: medium;
+}
+
+/* Make the text shrink to fit narrow windows, but not stretch too far in 
+wide windows. */ 
+p,h1,h2,div.content div {
+  max-width: 600px;
+  /* Hack for IE6 */
+  width: auto !important; width: 600px;
+}
+
+pre.codeinput {
+  background: #EEEEEE;
+  padding: 10px;
+}
+@media print {
+  pre.codeinput {word-wrap:break-word; width:100%;}
+} 
+
+span.keyword {color: #0000FF}
+span.comment {color: #228B22}
+span.string {color: #A020F0}
+span.untermstring {color: #B20000}
+span.syscmd {color: #B28C00}
+
+pre.codeoutput {
+  color: #666666;
+  padding: 10px;
+}
+
+pre.error {
+  color: red;
+}
+
+p.footer {
+  text-align: right;
+  font-size: xx-small;
+  font-weight: lighter;
+  font-style: italic;
+  color: gray;
+}
+
+  </style></head>
+   <body>
+      <div class="content">
+         <h1>Function Quiz script</h1>
+         <introduction></introduction>
+         <h2>Contents</h2>
+         <div>
+            <ul>
+               <li><a href="#1">Functions:</a></li>
+               <li><a href="#4">Regular Function - fquiz1</a></li>
+               <li><a href="#6">Function Handle - fquiz2</a></li>
+               <li><a href="#8">Anonymous functions - fquiz3</a></li>
+               <li><a href="#10">Subfunctions - fquiz4</a></li>
+               <li><a href="#12">Nested functions - fquiz5, fquiz6, fquiz7</a></li>
+            </ul>
+         </div>
+         <h2>Functions:<a name="1"></a></h2>
+         <p>Use the Function Type Quiz as the foundation for discussion on different function types.</p>
+         <p>Before starting, run the following command to open all of the quiz files in the editor, in a convenient order.</p><pre class="codeinput">openfquiz
+</pre><p>The rest of this document is organized into one section for each file in the quiz.  For each section, you will find key points
+            to emphasize in a discussion of when/why to use each type and tips for demonstrating the example.
+         </p>
+         <h2>Regular Function - fquiz1<a name="4"></a></h2>
+         <p>Key points:</p>
+         <div>
+            <ul>
+               <li>Restricts scoping of variables</li>
+               <li>Often improved performance</li>
+            </ul>
+         </div>
+         <p>Discussion / Demonstration:</p>
+         <div>
+            <ul>
+               <li>Quickly reinforce key components of function - keyword, output, input, H1 line</li>
+               <li>Ask if can add "end" to function (yes).  Show it.</li>
+            </ul>
+         </div>
+         <h2>Function Handle - fquiz2<a name="6"></a></h2>
+         <p>Key points:</p>
+         <div>
+            <ul>
+               <li>Great for Callbacks</li>
+               <li>Very explicit</li>
+            </ul>
+         </div>
+         <p>Discussion / Demonstration:</p>
+         <div>
+            <ul>
+               <li>Step through <tt>fquiz2</tt></li>
+               <li>Call a function handle like any other function, or pass to another function</li>
+               <li>We'll see useful applications of these soon</li>
+            </ul>
+         </div>
+         <h2>Anonymous functions - fquiz3<a name="8"></a></h2>
+         <p>Key points:</p>
+         <div>
+            <ul>
+               <li>Don't need a file</li>
+               <li>Very convenient.</li>
+               <li>Complete package, with parameters  (vs. inline)</li>
+               <li>Useful for optimization functions, also lots of fun-funs (especially the new ones like <tt>cellfun</tt> and <tt>arrayfun</tt>)
+               </li>
+            </ul>
+         </div>
+         <p>Discussion / Demonstration:</p>
+         <div>
+            <ul>
+               <li>Step through <tt>fquiz3</tt></li>
+               <li>Show how parameter values are locked down at creation time.</li>
+               <li>Show use of functions command to get workspace</li>
+               <li>Only show inline if some attendees are familiar with them.</li>
+            </ul>
+         </div>
+         <h2>Subfunctions - fquiz4<a name="10"></a></h2>
+         <p>Key points:</p>
+         <div>
+            <ul>
+               <li>Limited scope.</li>
+               <li>No path clutter/But not directly accessible elsewhere</li>
+               <li>Improve readability of main function</li>
+            </ul>
+         </div>
+         <p>Discussion / Demonstration:</p>
+         <div>
+            <ul>
+               <li>Explain <tt>fquiz4</tt></li>
+               <li>Explain that END is all or nothing.  Add to main function, show/discuss M-Lint warning.  Add to subfunction - warning goes
+                  away.
+               </li>
+               <li>&gt;&gt; which avg  % Try from base WS, then with debugger stopped inside <tt>fquiz5</tt></li>
+               <li>Show current function indicator in status bar with selection point inside subfunction</li>
+               <li>Show function pop-up in editor toolbar to navigate among functions</li>
+               <li>Show how to get help for subfunction.  <tt>help fQuiz4&gt;makeline</tt></li>
+               <li>Discuss/show function handle to export function:</li>
+            </ul>
+         </div><pre>         function [y, fh] = fquiz4(x)
+           ...
+         y = makeline(x,a,b);
+         fh = @makeline;</pre><div>
+            <ul>
+               <li>Don't close <tt>fquiz4</tt></li>
+            </ul>
+         </div>
+         <h2>Nested functions - fquiz5, fquiz6, fquiz7<a name="12"></a></h2>
+         <p>Key points:</p>
+         <div>
+            <ul>
+               <li>Limited scope.</li>
+               <li>No path clutter.</li>
+               <li>Shared memory.</li>
+               <li>Store functions with parameter (like anon, but bigger than 1 line), and state</li>
+            </ul>
+         </div>
+         <p>Discussion / Demonstration:</p>
+         <div>
+            <ul>
+               <li>Explain <tt>fquiz5</tt> .  Show side-by-side with <tt>fquiz4</tt> to highlight the change.
+               </li>
+               <li>Explain that (a,b) come from outer function</li>
+               <li>Why ever use inputs for nested functions? 1) If you have to (mandatory inputs, such as with certain object callbacks), 2)
+                  you want to call same function with different values.
+               </li>
+               <li>Modify code: Add "a=5;" in inner.  Ask audience what value of a will be after call to inner. Show that it is updated by inner
+                  function! Explain how shared memory works with nested functions.
+               </li>
+               <li>Show <tt>fquiz6</tt>, side-by-side with <tt>fquiz5</tt>.  Show what's different - no x, output is function handle.  Create two separate function handles with different parameters
+                  <tt>a</tt> &amp; <tt>b</tt>.
+               </li>
+            </ul>
+         </div><pre>           fh1 = fquiz6(3,5);
+           fh2 = fquiz6(30,50);</pre><p>Notice that the function handle preserves the workspace of the function, in this case the values of <tt>a</tt> &amp; <tt>b</tt>.
+         </p>
+         <div>
+            <ul>
+               <li>To help people understand the workspace, consider showing the folowing:</li>
+            </ul>
+         </div><pre>        f = functions(fh1)
+        f.workspace{:}
+        f = functions(fh2)
+        f.workspace{:}
+        ezplot(fh1);hold on;
+        ezplot(fh2);</pre><div>
+            <ul>
+               <li>Show <tt>fquiz7</tt>.  This is an example from the documentation (nesteddemo/makecounter), showing how nested functions can be used to create
+                  function handles with state/storing data. Run it as follows:
+               </li>
+            </ul>
+         </div><pre>       counter1 = fquiz7(0);  % Define counter initialized to 0
+       counter2 = fquiz7(10); % Define counter initialized to 10
+       counter1               % Shows that it's a function handle.  Probably not expected behavior!
+       counter1()             % Must use () to invoke function handle
+       counter1()
+       counter2()
+       counter2()</pre><p class="footer">Copyright 2007 The MathWorks, Inc.<br>
+            Published with MATLAB&reg; 7.5<br></p>
+      </div>
+      <!--
+##### SOURCE BEGIN #####
+%% Function Quiz script
+
+% Copyright 2007 The MathWorks, Inc.
+
+%% Functions:
+% Use the Function Type Quiz as the foundation for discussion on
+% different function types.  
+
+%%
+% Before starting, run the following command to open all of the quiz
+% files in the editor, in a convenient order.
+
+openfquiz 
+
+%%
+% The rest of this document is organized into one section for each file
+% in the quiz.  For each section, you will find key points to emphasize
+% in a discussion of when/why to use each type and tips for
+% demonstrating the example.
+
+
+%% Regular Function - fquiz1
+% Key points:
+%
+% * Restricts scoping of variables
+% * Often improved performance
+
+%%
+% Discussion / Demonstration: 
+% 
+% * Quickly reinforce key components of function - keyword, output, input, H1
+% line
+% * Ask if can add "end" to function (yes).  Show it.
+
+
+%% Function Handle - fquiz2
+% Key points:
+%
+% * Great for Callbacks
+% * Very explicit
+
+%%
+% Discussion / Demonstration: 
+% 
+% * Step through |fquiz2|
+% * Call a function handle like any other function, or pass to another
+% function
+% * We'll see useful applications of these soon
+
+
+%% Anonymous functions - fquiz3
+% Key points:
+%
+% * Don't need a file
+% * Very convenient.
+% * Complete package, with parameters  (vs. inline)
+% * Useful for optimization functions, also lots of fun-funs (especially
+% the new ones like |cellfun| and |arrayfun|)
+
+%%
+% Discussion / Demonstration: 
+%
+% * Step through |fquiz3| 
+% * Show how parameter values are locked down at creation time.
+% * Show use of functions command to get workspace
+% * Only show inline if some attendees are familiar with them.
+
+%% Subfunctions - fquiz4
+% Key points:
+%
+% * Limited scope.  
+% * No path clutter/But not directly accessible elsewhere
+% * Improve readability of main function
+
+%%
+% Discussion / Demonstration: 
+% 
+% * Explain |fquiz4|
+% * Explain that END is all or nothing.  Add to main function,
+% show/discuss M-Lint warning.  Add to subfunction - warning goes away.
+% * >> which avg  % Try from base WS, then with debugger stopped inside
+% |fquiz5|
+% * Show current function indicator in status bar with selection point
+% inside subfunction
+% * Show function pop-up in editor toolbar to navigate among functions
+% * Show how to get help for subfunction.  |help fQuiz4>makeline|
+% * Discuss/show function handle to export function:
+%
+%           function [y, fh] = fquiz4(x)
+%             ...
+%           y = makeline(x,a,b);
+%           fh = @makeline;
+%
+% * Don't close |fquiz4|
+
+%% Nested functions - fquiz5, fquiz6, fquiz7
+% Key points:
+%
+% * Limited scope.
+% * No path clutter.
+% * Shared memory.
+% * Store functions with parameter (like anon, but bigger than 1 line),
+% and state
+
+%%
+% Discussion / Demonstration: 
+% 
+% * Explain |fquiz5| .  Show side-by-side with |fquiz4| to highlight the
+% change.
+% * Explain that (a,b) come from outer function
+% * Why ever use inputs for nested functions? 1) If you have to
+% (mandatory inputs, such as with certain object callbacks), 2) you want
+% to call same function with different values. 
+% * Modify code: Add "a=5;" in inner.  Ask audience what value of a will
+% be after call to inner. Show that it is updated by inner function!
+% Explain how shared memory works with nested functions. 
+% * Show |fquiz6|, side-by-side with |fquiz5|.  Show what's different - no x, output is function
+% handle.  Create two separate function handles with different
+% parameters |a| & |b|.  
+%
+%             fh1 = fquiz6(3,5);
+%             fh2 = fquiz6(30,50);
+%
+% Notice that the function handle preserves the workspace of the
+% function, in this case the values of |a| & |b|. 
+%
+% * To help people understand the workspace, consider showing the
+% folowing:
+%
+%          f = functions(fh1)
+%          f.workspace{:}
+%          f = functions(fh2)
+%          f.workspace{:}
+%          ezplot(fh1);hold on;
+%          ezplot(fh2);
+%
+% * Show |fquiz7|.  This is an example from the documentation
+% (nesteddemo/makecounter), showing how nested functions can be used to
+% create function handles with state/storing data. Run it as follows:
+%  
+%         counter1 = fquiz7(0);  % Define counter initialized to 0
+%         counter2 = fquiz7(10); % Define counter initialized to 10
+%         counter1               % Shows that it's a function handle.  Probably not expected behavior!
+%         counter1()             % Must use () to invoke function handle
+%         counter1()
+%         counter2()
+%         counter2()
+
+##### SOURCE END #####
+-->
+   </body>
+</html>

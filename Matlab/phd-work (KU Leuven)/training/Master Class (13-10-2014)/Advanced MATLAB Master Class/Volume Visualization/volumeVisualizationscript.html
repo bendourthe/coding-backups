@@ -1,0 +1,354 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html xmlns:mwsh="http://www.mathworks.com/namespace/mcode/v1/syntaxhighlight.dtd">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   
+      <!--
+This HTML is auto-generated from an M-file.
+To make changes, update the M-file and republish this document.
+      -->
+      <title>Script for Volume Visualization Example</title>
+      <meta name="generator" content="MATLAB 7.5">
+      <meta name="date" content="2007-07-27">
+      <meta name="m-file" content="volumeVisualizationscript"><style>
+
+body {
+  background-color: white;
+  margin:10px;
+}
+
+h1 {
+  color: #990000; 
+  font-size: x-large;
+}
+
+h2 {
+  color: #990000;
+  font-size: medium;
+}
+
+/* Make the text shrink to fit narrow windows, but not stretch too far in 
+wide windows. */ 
+p,h1,h2,div.content div {
+  max-width: 600px;
+  /* Hack for IE6 */
+  width: auto !important; width: 600px;
+}
+
+pre.codeinput {
+  background: #EEEEEE;
+  padding: 10px;
+}
+@media print {
+  pre.codeinput {word-wrap:break-word; width:100%;}
+} 
+
+span.keyword {color: #0000FF}
+span.comment {color: #228B22}
+span.string {color: #A020F0}
+span.untermstring {color: #B20000}
+span.syscmd {color: #B28C00}
+
+pre.codeoutput {
+  color: #666666;
+  padding: 10px;
+}
+
+pre.error {
+  color: red;
+}
+
+p.footer {
+  text-align: right;
+  font-size: xx-small;
+  font-weight: lighter;
+  font-style: italic;
+  color: gray;
+}
+
+  </style></head>
+   <body>
+      <div class="content">
+         <h1>Script for Volume Visualization Example</h1>
+         <introduction></introduction>
+         <h2>Contents</h2>
+         <div>
+            <ul>
+               <li><a href="#1">Introduction</a></li>
+               <li><a href="#6">Create initial visualization</a></li>
+               <li><a href="#7">Setup</a></li>
+               <li><a href="#11">Draw a slice plane</a></li>
+               <li><a href="#12">Draw more slice planes</a></li>
+               <li><a href="#13">Put them away</a></li>
+               <li><a href="#14">How does this work?</a></li>
+               <li><a href="#15">Summarize first part of demo</a></li>
+               <li><a href="#16">How do we build a GUI on top of this?</a></li>
+            </ul>
+         </div>
+         <h2>Introduction<a name="1"></a></h2>
+         <p>Now I'd like to show you one application of the technology we've discussed today.  We'd like to build a simple GUI to aid
+            with the visualization of 3D data sets.  Let's take a look:
+         </p>
+         <p>We start with some sample data that ships with MATLAB. Fluid flow speed (<tt>v</tt>) has been measured over a fully-populated 3-D grid of a prismatic space <tt>x, y,</tt> and <tt>z</tt>.  We would like to be able to visualize the measurements <tt>v</tt>.
+         </p><pre class="codeinput">[x,y,z,v] = flow;
+volvisGUI(x,y,z,v)
+</pre><img vspace="5" hspace="5" src="volumeVisualizationscript_01.png"> <pre class="codeinput">close <span class="string">all</span>;
+</pre><p>We'll break down this work into two parts.  The first thing we do is to develop the functionality that builds the background
+            of the visualization and allows us to add and remove slice planes.
+         </p>
+         <p>We'll look at the use of function handles and nested functions to develop a custom data visualization routine that encapsulates
+            data and funtionality (methods).
+         </p>
+         <p>In this example, you will see how to use function handles to export nested functions.  Since nested functions can have persistent
+            data, this gives a very nice way to store data along with functionality. You could consider this as an object-oriented-like
+            approach to building custom functionality in MATLAB, as an alternative to traditional functional programming. You will also
+            see how to use function handles and nested functions for GUI callbacks.
+         </p>
+         <h2>Create initial visualization<a name="6"></a></h2>
+         <p>We can use the custom function we developed (<tt>volumeVisualization</tt>) to draw the bottom and back walls of the measurement space.
+         </p><pre class="codeinput">fh = volumeVisualization(x,y,z,v);
+</pre><img vspace="5" hspace="5" src="volumeVisualizationscript_02.png"> <h2>Setup<a name="7"></a></h2>
+         <p>Edit <tt>volumeVisualization</tt>. Setup the desktop so <tt>volumeVisualization</tt> and command window are visible.
+         </p><pre class="codeinput">edit <span class="string">volumeVisualizationPseudo</span>
+</pre><p>Let's take a quick look at the code. We first initialize handles to the axis where we are drawing, and to a slice plane, which
+            we'll see in a minute.  Since these handles are initialized here (in the main function), they will be accessible inside of
+            all nested functions. We then create data for a generic slice through the yz-plane.  This is a grid of coordinates just like
+            you see on the back right wall (with the blue circle).  We'll move this plane back and forth along the x-axis to visualize
+            the flow field.  Again, this data will be accessible inside of all  of the nested functions.  Finally, we call <tt>initDisplay</tt>, which is a nested function that generates the initial display. [Show <tt>initDisplay</tt>].  After the nested functions, the last thing we do is create an output structure.
+         </p>
+         <p>The function returns <tt>fh</tt>, which you can think of as a handle to the visualization.  Let's take a look at it:
+         </p><pre class="codeinput">fh
+</pre><pre class="codeoutput">
+fh = 
+
+           addSlicePlane: @volumeVisualization/addSlicePlane
+    deleteLastSlicePlane: @volumeVisualization/deleteLastSlicePlane
+                    xMin: 0.1000
+                    xMax: 9.9000
+
+</pre><p>Notice that we've done something different here.  Instead of returning what you might expect - handles to the 3 surfaces that
+            were drawn, perhaps - we've actually returned a structure.  The last two fields of the structure are self-explanatory - they
+            just capture the minimum and maximum values of the x-coordinates. Can anyone figure out what's going with the first two fields?
+         </p>
+         <p>[Scroll in the editor so that <tt>addSlicePlane</tt> and <tt>deleteSlicePlane</tt> are visible.]
+         </p>
+         <p>The first two fields contain handles to nested functions inside of volvis.</p>
+         <h2>Draw a slice plane<a name="11"></a></h2>
+         <p>We can draw a slice plane at x=9 to get a feel for the data</p><pre class="codeinput">fh.addSlicePlane(9)
+</pre><img vspace="5" hspace="5" src="volumeVisualizationscript_03.png"> <h2>Draw more slice planes<a name="12"></a></h2>
+         <p>That was so useful, let's draw more</p><pre class="codeinput">fh.addSlicePlane(7)
+fh.addSlicePlane(5)
+fh.addSlicePlane(3)
+</pre><img vspace="5" hspace="5" src="volumeVisualizationscript_04.png"> <h2>Put them away<a name="13"></a></h2>
+         <p>When we don't want a slice plane any longer, we can delete it. LIFO</p><pre class="codeinput">fh.deleteLastSlicePlane();
+fh.deleteLastSlicePlane();
+fh.deleteLastSlicePlane();
+</pre><img vspace="5" hspace="5" src="volumeVisualizationscript_05.png"> <h2>How does this work?<a name="14"></a></h2>
+         <p>Let's take a closer look at the code so that we can figure out what is going on.  What is happening when we type <tt>fh.addSlicePlane(9)</tt>? Since this field contains a handle to the function <tt>addSlicePlane</tt>, we are actually calling the function <tt>addSlicePlane</tt>. [Show source for <tt>addSlicePlace</tt>].  <tt>addSlicePlane</tt> adds a slice plane at the specified x-coordinate.  The first line sets the x-coordinate of our slice plane.  While it uses
+            the value of <tt>xLoc</tt> we passed in, it's using the value of <tt>yd</tt> that was created at the top of the main function.  The next line draws the slice plane.  The one after that stores a handle
+            to the slice plane we just drew.  Note that this is building a stack of handles to every slice plane.  The final step just
+            makes the slice plane look nice.
+         </p>
+         <p><tt>deleteSlicePlane</tt> is a bit simpler - it just deletes the newest slice plane in the stack, then updates the list of slice planes.  This is a
+            very simple way of implementing a FIFO buffer.  [MIKE - CAN WE DO LIFO just as easily?  THAT SEEMS TO MAKE MORE SENSE].  It's
+            the persistence of data with nested functions that makes this whole thing work.
+         </p>
+         <h2>Summarize first part of demo<a name="15"></a></h2>
+         <p>This first part of this example showed how you can take advantage of the ability of nested functions to preserve their data.
+             This allowed us to build a custom function that encapsulated data and methods together.  One key step was to use function
+            handles to export the nested functions outside of the main function.
+         </p>
+         <h2>How do we build a GUI on top of this?<a name="16"></a></h2>
+         <p>When I build large UIs, I typically use GUIDE, the Graphical User Interface Development Environment.  For smaller, light-weight
+            applications, I usually prefer to just build the UI programmatically.  Nested functions turn out to be very convenient for
+            building UIs.  The ability of nested functions to all share one workspace means that all of your callbacks can immediately
+            access all of the data in your application, including handles to all of the other user interface controls.
+         </p>
+         <p>As a reminder, here's the GUI that we built.  We just added a slider to control the position of the slice plane.</p><pre class="codeinput">edit <span class="string">volvisGUI</span>
+volvisGUI(x,y,z,v)
+</pre><img vspace="5" hspace="5" src="volumeVisualizationscript_06.png"> <div>
+            <ul>
+               <li>Use the slider to demonstrate behavior of GUI</li>
+               <li>Walk through code for <tt>volvisGUI</tt>:
+               </li>
+            </ul>
+         </div><pre>      - Explain callback: function handle, varargin
+      - Notice that we are leveraging all of the benefits of nested
+      functions without having to put all of our code into a single
+      file.</pre><p class="footer">Copyright 2007 The MathWorks, Inc.<br>
+            Published with MATLAB&reg; 7.5<br></p>
+      </div>
+      <!--
+##### SOURCE BEGIN #####
+%% Script for Volume Visualization Example
+
+% Copyright 2007 The MathWorks, Inc.
+
+%% Introduction
+% Now I'd like to show you one application of the technology we've
+% discussed today.  We'd like to build a simple GUI to aid with the
+% visualization of 3D data sets.  Let's take a look:
+%
+% We start with some sample data that ships with MATLAB. Fluid flow speed
+% (|v|) has been measured over a fully-populated 3-D grid of a prismatic
+% space |x, y,| and |z|.  We would like to be able to visualize the
+% measurements |v|.
+%
+[x,y,z,v] = flow;
+volvisGUI(x,y,z,v)
+%%
+close all;
+
+%%
+% We'll break down this work into two parts.  The first thing we do is
+% to develop the functionality that builds the background of the
+% visualization and allows us to add and remove slice planes.
+
+%%
+% We'll look at the use of function handles and nested
+% functions to develop a custom data visualization routine that
+% encapsulates data and funtionality (methods).
+
+%%
+% In this example, you will see how to use function handles to export
+% nested functions.  Since nested functions can have persistent data,
+% this gives a very nice way to store data along with functionality.
+% You could consider this as an object-oriented-like approach to building
+% custom functionality in MATLAB, as an alternative to traditional
+% functional programming. You will also see how to use function handles
+% and nested functions for GUI callbacks.
+
+%% Create initial visualization
+% We can use the custom function we developed (|volumeVisualization|) to draw the
+% bottom and back walls of the measurement space.
+fh = volumeVisualization(x,y,z,v);
+
+
+%% Setup
+% Edit |volumeVisualization|. Setup the desktop so |volumeVisualization|
+% and command window are visible.
+edit volumeVisualizationPseudo
+
+
+%% 
+% Let's take a quick look at the code. We first initialize handles to
+% the axis where we are drawing, and to a slice plane, which we'll see
+% in a minute.  Since these handles are initialized here (in the main
+% function), they will be accessible inside of all nested functions.
+% We then create data for a generic slice through the yz-plane.  This is
+% a grid of coordinates just like you see on the back right wall (with
+% the blue circle).  We'll move this plane back and forth along the
+% x-axis to visualize the flow field.  Again, this data will be
+% accessible inside of all  of the nested functions.  Finally, we call
+% |initDisplay|, which is a nested function that generates the initial
+% display. [Show |initDisplay|].  After the nested functions, the last
+% thing we do is create an output structure.
+
+%% 
+% The function returns |fh|, which you can think of as a handle to the
+% visualization.  Let's take a look at it:
+fh
+
+%%
+% Notice that we've done something different here.  Instead of returning
+% what you might expect - handles to the 3 surfaces that were drawn,
+% perhaps - we've actually returned a structure.  The last two fields of the structure
+% are self-explanatory - they just capture the minimum and maximum
+% values of the x-coordinates. Can anyone figure out what's going with
+% the first two fields?
+%
+% [Scroll in the editor so that |addSlicePlane| and |deleteSlicePlane|
+% are visible.]
+%
+% The first two fields contain handles to nested functions inside of
+% volvis.
+
+%% Draw a slice plane
+% We can draw a slice plane at x=9 to get a feel for the data 
+fh.addSlicePlane(9)
+
+%% Draw more slice planes
+% That was so useful, let's draw more
+fh.addSlicePlane(7)
+fh.addSlicePlane(5)
+fh.addSlicePlane(3)
+
+%% Put them away
+% When we don't want a slice plane any longer, we can delete it. LIFO
+fh.deleteLastSlicePlane();
+fh.deleteLastSlicePlane();
+fh.deleteLastSlicePlane();
+
+%% How does this work?
+% Let's take a closer look at the code so that we can figure out what is
+% going on.  What is happening when we type |fh.addSlicePlane(9)|?
+% Since this field contains a handle to the function
+% |addSlicePlane|, we are actually calling the function |addSlicePlane|.
+% [Show source for |addSlicePlace|].  |addSlicePlane| adds a slice plane
+% at the specified x-coordinate.  The first line sets the x-coordinate
+% of our slice plane.  While it uses the value of |xLoc| we passed in,
+% it's using the value of |yd| that was created at the top of the main
+% function.  The next line draws the slice plane.  The one after that
+% stores a handle to the slice plane we just drew.  Note that this is
+% building a stack of handles to every slice plane.  The final step just
+% makes the slice plane look nice.
+%
+% |deleteSlicePlane| is a bit simpler - it just deletes the newest slice
+% plane in the stack, then updates the list of slice planes.  This is a
+% very simple way of implementing a FIFO buffer.  [MIKE - CAN WE DO LIFO
+% just as easily?  THAT SEEMS TO MAKE MORE SENSE].  It's the persistence
+% of data with nested functions that makes this whole thing work.
+
+%% Summarize first part of demo
+% 
+% This first part of this example showed how you can take advantage of
+% the ability of nested functions to preserve their data.  This allowed
+% us to build a custom function that encapsulated data and methods
+% together.  One key step was to use function handles to export the
+% nested functions outside of the main function.
+
+%% How do we build a GUI on top of this?
+% When I build large UIs, I typically use GUIDE, the
+% Graphical User Interface Development Environment.  For smaller,
+% light-weight applications, I usually prefer to just build the UI
+% programmatically.  Nested functions turn out to be very convenient for
+% building UIs.  The ability of nested functions to all share one
+% workspace means that all of your callbacks can immediately access all
+% of the data in your application, including handles to all of the other
+% user interface controls.
+
+%%
+% As a reminder, here's the GUI that we built.  We just added a slider
+% to control the position of the slice plane.
+edit volvisGUI
+volvisGUI(x,y,z,v)
+
+%%
+% 
+% * Use the slider to demonstrate behavior of GUI
+% * Walk through code for |volvisGUI|:
+%
+%        - Explain callback: function handle, varargin
+%        - Notice that we are leveraging all of the benefits of nested
+%        functions without having to put all of our code into a single
+%        file.
+%     
+
+
+
+
+
+
+
+
+
+
+
+
+
+##### SOURCE END #####
+-->
+   </body>
+</html>

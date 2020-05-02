@@ -1,0 +1,225 @@
+clear all; close all;
+
+dir = 'D:\2012\STLs\STL\';
+data_available = 1;
+    filename = 'RotTransData.txt';
+    file = [dir filename];
+radius_axis_available = 1;
+    filenameAX = 'RadAxes.txt';
+    fileAX = [dir filenameAX];
+
+
+% FILES
+
+Rad_frag = 'Radius_part_1_260612.stl';
+Rad = 'HR_Radius_Wrapped_260612.stl';
+MC_frag = '4D CT Leuven serie3_slice1_MC1_surfaceRemesh.stl';
+MC_frag_groter = '4D CT Leuven serie3_slice7_MC1.stl';
+Trap1 = '4D CT Leuven serie3_slice1_Trapezium.stl';
+Trap2 = '4D CT Leuven serie3_slice7_Trapezium.stl';
+
+
+if(data_available)
+    A = txt2mat(file);
+    
+    [F_Rad_end_init, V_Rad_end_init] =  STL_ReadFile([dir Rad_frag],true);
+    [F_Rad, V_Rad] =  STL_ReadFile([dir Rad],true);
+    [F_MC_end_init, V_MC_end_init] =  STL_ReadFile([dir MC_frag]',true);
+    [F_MC, V_MC] =  STL_ReadFile([dir MC_frag_groter],true);
+    [F_Trap_init, V_Trap_init] =  STL_ReadFile([dir Trap1],true);
+    [F_Trap, V_Trap] =  STL_ReadFile([dir Trap2],true);
+    
+    R_Rad = A(1:3,1:3);
+    T_Rad = A(1:3,4);
+    R_MC = A(4:6,1:3);
+    T_MC = A(4:6,4);
+    R_Trap = A(7:9,1:3);
+    T_Trap = A(7:9,4);
+    
+    
+    
+else
+    fid = fopen(file,'w+');
+    % Radiusfragment registreren in grote CT scan
+
+    stl_frag = [dir  Rad_frag];
+    stl = [dir Rad];
+
+    [R_Rad, T_Rad, F_Rad_end_init, V_Rad_end_init, F_Rad, V_Rad] = MatchBones6(stl_frag,stl,1,1);
+    
+    W = reshape([R_Rad, T_Rad].',1,[]);
+    fprintf(fid,'%5.8f\t%5.8f\t%5.8f\t%5.8f\r\n',W);
+
+    % transformatie van MC berekenen
+
+    stl_frag = [dir MC_frag];
+    stl = [dir MC_frag_groter];
+
+    [R_MC, T_MC, F_MC_end_init, V_MC_end_init, F_MC, V_MC] = MatchBones6(stl_frag,stl,1);
+    W = reshape([R_MC, T_MC].',1,[]);
+    fprintf(fid,'%5.8f\t%5.8f\t%5.8f\t%5.8f\r\n',W);
+
+
+    % transformatie van Trapezium berekenen
+
+    stl_frag = [dir Trap1];
+    stl = [dir Trap2];
+
+    [R_Trap, T_Trap, F_Trap_init, V_Trap_init, F_Trap, V_Trap] = MatchBones6(stl_frag,stl,0);
+    
+    W = reshape([R_Trap, T_Trap].',1,[]);
+    fprintf(fid,'%5.8f\t%5.8f\t%5.8f\t%5.8f\r\n',W);
+
+
+    fclose(fid);
+end
+
+
+%     h1 = figure;
+%     [obj, li, ax] = GUI_PlotShells(h1, {F_MC_end_init;F_MC;F_Trap_init;F_Trap}, {V_MC_end_init;V_MC;V_Trap_init;V_Trap},...
+%         {ones(size(V_MC_end_init,1),1),ones(size(V_MC,1),1),ones(size(V_Trap_init,1),1),ones(size(V_Trap,1),1)});
+    
+    MC1 = R_Rad*V_MC_end_init.' + repmat(T_Rad,1,size(V_MC_end_init,1)); MC1 = MC1.';
+    MC2 = R_Rad*V_MC.' + repmat(T_Rad,1,size(V_MC,1)); MC2 = MC2.';
+    Trap1 = R_Rad*V_Trap_init.' + repmat(T_Rad,1,size(V_Trap_init,1)); Trap1 = Trap1.';
+    Trap2 = R_Rad*V_Trap.' + repmat(T_Rad,1,size(V_Trap,1)); Trap2 = Trap2.';
+
+   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   %%%%% DUIDELIJK SCHALINGSVERSCHIL op Z as (x en y schijnbaar niet) %%%%%
+   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    
+    
+    
+    
+    
+% alles plotten in groot coördstelsel
+% figure
+% scatter3(V_Rad(:,1),V_Rad(:,2),V_Rad(:,3),'red','filled');
+% hold on;
+% scatter3(MC1(1:50:end,1),MC1(1:50:end,2),MC1(1:50:end,3),'blue','filled'); hold on;
+% scatter3(MC2(1:50:end,1),MC2(1:50:end,2),MC2(1:50:end,3),'green','filled');
+% scatter3(Trap1(1:50:end,1),Trap1(1:50:end,2),Trap1(1:50:end,3),'black','filled');
+% figure
+% scatter3(Trap2(:,1),Trap2(:,2),Trap2(:,3),'red','filled');
+% hold off;
+
+%     h1 = figure;
+%     [obj, li, ax] = GUI_PlotShells(h1, {F_MC_end_init;F_MC;F_Trap_init;F_Trap}, {MC1;MC2;Trap1;Trap2},...
+%         {ones(size(MC1,1),1),ones(size(MC2,1),1),ones(size(Trap1,1),1),ones(size(Trap2,1),1)});
+
+
+% Assenstelsel op radius:
+%   oorsprong: in mediaal uitsteeksel ter hoogte van styloïden
+%   y: richting tuberositas radii
+%   z: richting radius styloid
+%   x: loodrecht op vorige om een rechtsgeoriënteerd assenstelsel te vormen
+if(radius_axis_available)
+    A = txt2mat(fileAX);
+    
+    O = A(1,:);
+    Y = A(2,:);
+    Z = A(3,:);
+else
+    [ad_curve] = PlacePoints3({F_Rad}, {V_Rad}, {F_Rad}, {V_Rad}, 'Select origin, point on Y axis and point on Z axis (in that order!). End by pressing enter and exiting the figure');
+    % Retrieving coördinates of the points:
+    O = ad_curve.points{end,1}(1,:);
+    Y = ad_curve.points{end,1}(2,:);
+    Z = ad_curve.points{end,1}(3,:);
+    
+    fid = fopen(fileAX,'w+');
+    fprintf(fid,'%5.8f\t%5.8f\t%5.8f\r\n',[O,Y,Z]);
+    fclose(fid);
+end
+
+Origin = O;
+Yaxis = (Y-O)/norm(Y-O);
+Zaxis = (Z-O)/norm(Z-O);
+Xaxis = cross(Yaxis,Zaxis)/norm(cross(Yaxis,Zaxis));
+
+%         axis square
+%         scatter3(V_Rad(1:100:end,1),V_Rad(1:100:end,2),V_Rad(1:100:end,3),'red','filled')
+%         hold on
+%         arrow(O,O + Xaxis,5,70,30);
+%         arrow(O,O + Yaxis,5,70,30);
+%         arrow(O,O + Zaxis,5,70,30);
+
+% Omzetten naar radius assenstelsel
+RotMat = [Xaxis', Yaxis', Zaxis'];
+T = [RotMat, Origin';
+     0 0 0 1]; % Deze transformatiematrices zetten om van local naar global assenstelsel!!
+               % inverteren om van global naar local te gaan:
+glob2loc = [RotMat', -(RotMat')*Origin'; 0 0 0 1];
+    
+R_glob2loc = glob2loc(1:3,1:3);
+T_glob2loc = glob2loc(1:3,4);
+
+    MC1 = R_glob2loc*MC1.' + repmat(T_glob2loc,1,size(MC1,1)); MC1 = MC1.';
+    MC2 = R_glob2loc*MC2.' + repmat(T_glob2loc,1,size(MC2,1)); MC2 = MC2.';
+    Trap1 = R_glob2loc*Trap1.' + repmat(T_glob2loc,1,size(Trap1,1)); Trap1 = Trap1.';
+    Trap2 = R_glob2loc*Trap2.' + repmat(T_glob2loc,1,size(Trap2,1)); Trap2 = Trap2.';
+    V_Rad = R_glob2loc*V_Rad.' + repmat(T_glob2loc,1,size(V_Rad,1)); V_Rad = V_Rad.';
+    
+%         h9 = figure;
+%         [obj, li, ax] = GUI_PlotShells(h9, {F_MC_end_init;F_MC;F_Trap_init;F_Trap}, {MC1;MC2;Trap1;Trap2},...
+%         {ones(size(MC1,1),1),ones(size(MC2,1),1),ones(size(Trap1,1),1),ones(size(Trap2,1),1)});
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BEREKENEN SCREW AXIS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% AD HOC: een verandering in het referentieassenstelsel valt niet eenvoudig
+% door te rekenen. Om dit te omzeilen wordt de uiteindelijke transformatie
+% tussen de verschillende slices bepaald door in het definitieve
+% referentieassenstelsel de homogene transformatiematrix rechtstreeks te
+% berekenen op basis van de eerste 3 punten van de datasets.
+
+% MC1 tov glob
+Origin_tmp1 = MC1(1,:);
+Xaxis_tmp1 = (MC1(2,:)-Origin_tmp1)/norm(MC1(2,:)-Origin_tmp1);
+Yaxis_tmp1 = (MC1(3,:)-Origin_tmp1)/norm(MC1(3,:)-Origin_tmp1);
+Zaxis_tmp1 = cross(Xaxis_tmp1,Yaxis_tmp1)/norm(cross(Xaxis_tmp1,Yaxis_tmp1));
+
+RotMat_tmp1 = [Xaxis_tmp1', Yaxis_tmp1', Zaxis_tmp1'];
+T_tmp1 = [RotMat_tmp1, Origin_tmp1';
+          0 0 0 1];
+
+% getransformeerde MC1 tov glob
+MC1_tmp = glob2loc * [R_Rad, T_Rad; 0 0 0 1] * [R_MC, T_MC; 0 0 0 1] * [V_MC_end_init.' ; ones(1,size(V_MC_end_init,1))];
+Origin_tmp2 = MC1_tmp(1,1:3);
+Xaxis_tmp2 = (MC1_tmp(2,1:3)-Origin_tmp2)/norm(MC1_tmp(2,1:3)-Origin_tmp2);
+Yaxis_tmp2 = (MC1_tmp(3,1:3)-Origin_tmp2)/norm(MC1_tmp(3,1:3)-Origin_tmp2);
+Zaxis_tmp2 = cross(Xaxis_tmp2,Yaxis_tmp2)/norm(cross(Xaxis_tmp2,Yaxis_tmp2));
+
+RotMat_tmp2 = [Xaxis_tmp2', Yaxis_tmp2', Zaxis_tmp2'];
+T_tmp2 = [RotMat_tmp2, Origin_tmp2';
+          0 0 0 1];
+T_tmp2_inv = [RotMat_tmp2', -(RotMat_tmp2')*Origin_tmp2'; 0 0 0 1];
+      
+T_tmp_fin = T_tmp2_inv * T_tmp1;
+
+
+
+Hom_MC_fin = T_tmp_fin;
+      
+% %MC
+% Hom_MC_fin = glob2loc*[R_Rad, T_Rad; 0 0 0 1]*[R_MC, T_MC; 0 0 0 1];
+% [n_MC,point_MC,phi_MC,t_MC] = screw(Hom_MC_fin);
+% 
+% %Trapezium
+% Hom_Trap_fin = glob2loc*[R_Rad, T_Rad; 0 0 0 1]*[R_Trap, T_Trap; 0 0 0 1];
+% [n_Trap,point_Trap,phi_Trap,t_Trap] = screw(Hom_Trap_fin);
+% 
+% 
+%test
+R_tmp = Hom_MC_fin(1:3,1:3);
+T_tmp = Hom_MC_fin(1:3,4);
+MC1_tmp = R_tmp*MC1.' + repmat(T_tmp,1,size(MC1,1)); MC1_tmp = MC1_tmp.';
+
+h5 = figure;
+[obj, li, ax] = GUI_PlotShells(h5, {F_MC_end_init;F_MC}, {MC1_tmp;MC2},...
+{ones(size(MC1,1),1),ones(size(MC2,1),1)});
+
+
+
+
